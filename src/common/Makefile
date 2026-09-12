@@ -11,7 +11,7 @@ CC = gcc
 CFLAGS = -Wall -Wextra -std=c11
 LDLIBS = -lcrypto
 
-TESTS = test_min_heap test_bit_stream test_huffman_tree test_canonical_codes test_encode_decode test_md5
+TESTS = test_min_heap test_bit_stream test_huffman_tree test_canonical_codes test_encode_decode test_md5 test_file_format
 
 all: $(TESTS)
 
@@ -33,7 +33,10 @@ test_encode_decode: test_encode_decode.c huffman.c min_heap.c bit_stream.c
 test_md5: test_md5.c md5_utils.c
 	$(CC) $(CFLAGS) $^ -o $@ $(LDLIBS)
 
+test_file_format: test_file_format.c file_format.c
+	$(CC) $(CFLAGS) $^ -o $@
+
 clean:
-	rm -f $(TESTS)
+	rm -f $(TESTS) test_archive.huff
 
 .PHONY: all clean

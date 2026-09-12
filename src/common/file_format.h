@@ -2,6 +2,8 @@
 #define FILE_FORMAT_H
 
 #include <stdint.h>
+#include <stdio.h>
+#include <stdbool.h>
 
 // Identifies files produced by this program and rejects unrelated files
 // early, before attempting to parse anything after it.
@@ -39,5 +41,23 @@ typedef struct {
     uint8_t  paddingBits;                        // unused bits in the last
                                                   // byte of the bit stream
 } EntryHeader;
+
+// Field-by-field serialization avoids relying on the compiler's struct
+// padding, which is not guaranteed to match between different builds —
+// writing a raw struct with fwrite would be fragile across compilers
+// or optimization levels, even on the same machine.
+
+bool writeArchiveHeader(FILE* outputFile, const ArchiveHeader* header);
+
+// Returns false (without reporting further errors) if the magic number
+// does not match, so callers can reject foreign files immediately.
+bool readArchiveHeader(FILE* inputFile, ArchiveHeader* outHeader);
+
+bool writeEntryHeader(FILE* outputFile, const EntryHeader* header);
+
+// Allocates header->filename; caller must release it with freeEntryHeader.
+bool readEntryHeader(FILE* inputFile, EntryHeader* outHeader);
+
+void freeEntryHeader(EntryHeader* header);
 
 #endif // FILE_FORMAT_H
