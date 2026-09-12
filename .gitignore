@@ -1,0 +1,48 @@
+# Compiled binaries and objects
+*.o
+*.out
+
+# common/ smoke test binaries
+src/common/test_min_heap
+src/common/test_bit_stream
+src/common/test_huffman_tree
+src/common/test_canonical_codes
+src/common/test_encode_decode
+src/common/test_md5
+src/common/test_file_format
+src/common/test_archive.huff
+
+# serial/ compressor and decompressor binaries
+src/serial/serial_compressor
+src/serial/serial_decompressor
+
+# fork_ipc/ binaries (added as they're built)
+src/fork_ipc/fork_compressor
+src/fork_ipc/fork_decompressor
+
+# pthreads/ binaries (added as they're built)
+src/pthreads/pthread_compressor
+src/pthreads/pthread_decompressor
+
+# GUI binary
+src/gui/compressor_gui
+
+# Compressed archive output from manual testing
+*.huff
+
+# Valgrind / debugging artifacts
+*.log
+vgcore.*
+
+# LaTeX build artifacts
+docs/**/*.aux
+docs/**/*.log
+docs/**/*.out
+docs/**/*.toc
+docs/**/*.synctex.gz
+docs/**/*.fdb_latexmk
+docs/**/*.fls
+
+# OS-specific junk
+.DS_Store
+Thumbs.db
