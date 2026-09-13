@@ -46,3 +46,4 @@ docs/**/*.fls
 # OS-specific junk
 .DS_Store
 Thumbs.db
+src/serial/extracted_output/

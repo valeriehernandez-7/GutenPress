@@ -7,12 +7,15 @@ COMMON_SOURCES = $(COMMON_DIR)/file_format.c $(COMMON_DIR)/md5_utils.c \
                   $(COMMON_DIR)/huffman.c $(COMMON_DIR)/min_heap.c \
                   $(COMMON_DIR)/bit_stream.c
 
-all: serial_compressor
+all: serial_compressor serial_decompressor
 
 serial_compressor: serial_compressor.c $(COMMON_SOURCES)
 	$(CC) $(CFLAGS) $^ -o $@ $(LDLIBS)
 
+serial_decompressor: serial_decompressor.c $(COMMON_SOURCES)
+	$(CC) $(CFLAGS) $^ -o $@ $(LDLIBS)
+
 clean:
-	rm -f serial_compressor
+	rm -f serial_compressor serial_decompressor
 
 .PHONY: all clean
