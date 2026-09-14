@@ -46,4 +46,7 @@ docs/**/*.fls
 # OS-specific junk
 .DS_Store
 Thumbs.db
-src/serial/extracted_output/
+
+# Extraction test output folders (any version, any location)
+**/extracted_output/
+**/*_extracted_output/
