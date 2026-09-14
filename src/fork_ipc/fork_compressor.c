@@ -12,42 +12,13 @@
 #include "../common/file_format.h"
 #include "../common/file_scanner.h"
 #include "../common/compression_pipeline.h"
+#include "../common/work_partition.h"
 #include "pipe_buffer.h"
 
 // Detected once in main() and used for the lifetime of the program, so
 // every function that needs the worker count reads the same value
 // instead of re-querying sysconf() or passing it through every call.
 static int workerCount = 0;
-
-static void initializeWorkerCount(int fileCount) {
-    long detectedCores = sysconf(_SC_NPROCESSORS_ONLN);
-    if (detectedCores < 1) {
-        detectedCores = 1;   // fall back to a single worker if detection fails
-    }
-
-    workerCount = (int)detectedCores;
-    if (workerCount > fileCount) {
-        workerCount = fileCount;   // no point in more workers than files
-    }
-    if (workerCount < 1) {
-        workerCount = 1;
-    }
-}
-
-// Splits fileCount files into workerCount contiguous chunks as evenly
-// as possible: the first (fileCount % workerCount) workers get one
-// extra file each. outStartIndices has workerCount+1 entries, so a
-// worker's slice is files[outStartIndices[i] .. outStartIndices[i+1]).
-static void partitionFilesAcrossWorkers(int fileCount, int* outStartIndices) {
-    int baseChunkSize = fileCount / workerCount;
-    int remainder = fileCount % workerCount;
-
-    outStartIndices[0] = 0;
-    for (int i = 0; i < workerCount; i++) {
-        int chunkSize = baseChunkSize + (i < remainder ? 1 : 0);
-        outStartIndices[i + 1] = outStartIndices[i] + chunkSize;
-    }
-}
 
 // Runs entirely inside a forked child: compresses its assigned slice
 // of files and writes their EntryHeader + payload records to writeFd,
@@ -258,10 +229,10 @@ int main(int argc, char* argv[]) {
         return EXIT_FAILURE;
     }
 
-    initializeWorkerCount(fileCount);
+    workerCount = detectWorkerCount(fileCount);
 
     int startIndices[workerCount + 1];
-    partitionFilesAcrossWorkers(fileCount, startIndices);
+    partitionItemsAcrossWorkers(fileCount, workerCount, startIndices);
 
     PipeBuffer workerBuffers[workerCount];
     for (int i = 0; i < workerCount; i++) {
