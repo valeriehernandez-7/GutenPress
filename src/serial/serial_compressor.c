@@ -7,132 +7,13 @@
 #include <string.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <dirent.h>
-#include <sys/stat.h>
 
 #include "../common/file_format.h"
 #include "../common/md5_utils.h"
 #include "../common/huffman.h"
 #include "../common/bit_stream.h"
+#include "../common/file_scanner.h"
 
-#define MAX_PATH_LENGTH 4096
-
-typedef struct {
-    char* fullPath;       // needed to open and read the file's bytes
-    char* relativeName;   // stored in the archive so it can be rebuilt later
-} FileEntry;
-
-// Lists every regular file directly inside directoryPath (no recursion,
-// per current project scope). Uses stat() rather than dirent's d_type,
-// since d_type is not guaranteed to be populated on every filesystem.
-static int listRegularFilesInDirectory(const char* directoryPath, FileEntry** outEntries) {
-    DIR* directoryStream = opendir(directoryPath);
-    if (directoryStream == NULL) {
-        fprintf(stderr, "Could not open directory '%s'\n", directoryPath);
-        return -1;
-    }
-
-    // A first pass counts matching entries so the array can be
-    // allocated once at its exact size, instead of growing it entry
-    // by entry with repeated reallocations.
-    int fileCount = 0;
-    struct dirent* entry;
-    while ((entry = readdir(directoryStream)) != NULL) {
-        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
-            continue;
-        }
-
-        char entryPath[MAX_PATH_LENGTH];
-        snprintf(entryPath, sizeof(entryPath), "%s/%s", directoryPath, entry->d_name);
-
-        struct stat entryStat;
-        if (stat(entryPath, &entryStat) == 0 && S_ISREG(entryStat.st_mode)) {
-            fileCount++;
-        }
-    }
-
-    if (fileCount == 0) {
-        closedir(directoryStream);
-        *outEntries = NULL;
-        return 0;
-    }
-
-    FileEntry* entries = malloc((size_t)fileCount * sizeof(FileEntry));
-    if (entries == NULL) {
-        fprintf(stderr, "Out of memory while listing '%s'\n", directoryPath);
-        closedir(directoryStream);
-        return -1;
-    }
-
-    rewinddir(directoryStream);
-    int entryIndex = 0;
-    while ((entry = readdir(directoryStream)) != NULL && entryIndex < fileCount) {
-        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
-            continue;
-        }
-
-        char entryPath[MAX_PATH_LENGTH];
-        snprintf(entryPath, sizeof(entryPath), "%s/%s", directoryPath, entry->d_name);
-
-        struct stat entryStat;
-        if (stat(entryPath, &entryStat) == 0 && S_ISREG(entryStat.st_mode)) {
-            entries[entryIndex].fullPath = strdup(entryPath);
-            entries[entryIndex].relativeName = strdup(entry->d_name);
-            entryIndex++;
-        }
-    }
-
-    closedir(directoryStream);
-    *outEntries = entries;
-    return fileCount;
-}
-
-static void freeFileEntryList(FileEntry* entries, int entryCount) {
-    for (int i = 0; i < entryCount; i++) {
-        free(entries[i].fullPath);
-        free(entries[i].relativeName);
-    }
-    free(entries);
-}
-
-// Loads a whole file into memory in one call. Simpler than streaming
-// for this project's file sizes (Gutenberg books are at most a few MB),
-// and both MD5 and Huffman need the complete bytes anyway.
-static uint8_t* readEntireFile(const char* filePath, size_t* outFileSize) {
-    FILE* file = fopen(filePath, "rb");
-    if (file == NULL) {
-        fprintf(stderr, "Could not open file '%s'\n", filePath);
-        return NULL;
-    }
-
-    fseek(file, 0, SEEK_END);
-    long fileSize = ftell(file);
-    fseek(file, 0, SEEK_SET);
-
-    if (fileSize < 0) {
-        fprintf(stderr, "Could not determine size of '%s'\n", filePath);
-        fclose(file);
-        return NULL;
-    }
-
-    uint8_t* buffer = malloc((size_t)fileSize);
-    if (buffer == NULL) {
-        fprintf(stderr, "Out of memory while reading '%s'\n", filePath);
-        fclose(file);
-        return NULL;
-    }
-
-    if (fread(buffer, 1, (size_t)fileSize, file) != (size_t)fileSize) {
-        fprintf(stderr, "Failed to read full contents of '%s'\n", filePath);
-        free(buffer);
-        fclose(file);
-        return NULL;
-    }
-
-    fclose(file);
-    *outFileSize = (size_t)fileSize;
-    return buffer;
-}
 
 // Compresses one already-loaded file and appends its EntryHeader plus
 // compressed payload to the archive. MD5 is computed first, over the
