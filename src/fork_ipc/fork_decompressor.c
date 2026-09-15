@@ -16,6 +16,7 @@
 #include "../common/huffman.h"
 #include "../common/bit_stream.h"
 #include "../common/work_partition.h"
+#include "../common/directory_utils.h"
 
 #define MAX_PATH_LENGTH 4096
 
@@ -40,28 +41,6 @@ typedef struct {
     bool md5Matched;
 } WorkerResult;
 
-static bool ensureDirectoryExists(const char* directoryPath) {
-    char pathBuffer[MAX_PATH_LENGTH];
-    snprintf(pathBuffer, sizeof(pathBuffer), "%s", directoryPath);
-
-    for (char* cursor = pathBuffer + 1; *cursor != '\0'; cursor++) {
-        if (*cursor == '/') {
-            *cursor = '\0';
-            if (mkdir(pathBuffer, 0755) != 0 && errno != EEXIST) {
-                fprintf(stderr, "Could not create directory '%s'\n", pathBuffer);
-                return false;
-            }
-            *cursor = '/';
-        }
-    }
-
-    if (mkdir(pathBuffer, 0755) != 0 && errno != EEXIST) {
-        fprintf(stderr, "Could not create directory '%s'\n", pathBuffer);
-        return false;
-    }
-
-    return true;
-}
 
 // Reads every EntryHeader up front (cheap: at most a few hundred bytes
 // each) and records where each entry's compressed payload starts, so
