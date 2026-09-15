@@ -13,7 +13,7 @@
 #include "../common/file_scanner.h"
 #include "../common/compression_pipeline.h"
 #include "../common/work_partition.h"
-#include "pipe_buffer.h"
+#include "../common/growable_buffer.h"
 
 // Detected once in main() and used for the lifetime of the program, so
 // every function that needs the worker count reads the same value
@@ -63,7 +63,7 @@ static void runCompressorWorker(int writeFd, const FileEntry* assignedFiles, int
 // would block on write() while the parent was stuck reading a
 // different, slower worker's pipe.
 static bool runAllWorkersAndCollectOutput(const FileEntry* fileEntries, const int* startIndices,
-                                           PipeBuffer* workerBuffers) {
+                                           GrowableBuffer* workerBuffers) {
     int pipeFds[workerCount][2];
     pid_t childPids[workerCount];
 
@@ -139,7 +139,7 @@ static bool runAllWorkersAndCollectOutput(const FileEntry* fileEntries, const in
 
             ssize_t bytesRead = read(pipeFds[i][0], readChunk, sizeof(readChunk));
             if (bytesRead > 0) {
-                pipeBufferAppend(&workerBuffers[i], readChunk, (size_t)bytesRead);
+                growableBufferAppend(&workerBuffers[i], readChunk, (size_t)bytesRead);
             } else {
                 // 0 means EOF (worker closed its write end); negative
                 // means a real read error — either way, this pipe is done.
@@ -234,9 +234,9 @@ int main(int argc, char* argv[]) {
     int startIndices[workerCount + 1];
     partitionItemsAcrossWorkers(fileCount, workerCount, startIndices);
 
-    PipeBuffer workerBuffers[workerCount];
+    GrowableBuffer workerBuffers[workerCount];
     for (int i = 0; i < workerCount; i++) {
-        pipeBufferInit(&workerBuffers[i]);
+        growableBufferInit(&workerBuffers[i]);
     }
 
     bool allWorkersSucceeded = runAllWorkersAndCollectOutput(fileEntries, startIndices, workerBuffers);
@@ -256,7 +256,7 @@ int main(int argc, char* argv[]) {
 
     for (int i = 0; i < workerCount; i++) {
         fwrite(workerBuffers[i].data, 1, workerBuffers[i].length, archiveFile);
-        pipeBufferFree(&workerBuffers[i]);
+        growableBufferFree(&workerBuffers[i]);
     }
 
     fclose(archiveFile);
