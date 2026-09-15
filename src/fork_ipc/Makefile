@@ -20,4 +20,8 @@ fork_decompressor: fork_decompressor.c $(COMMON_SOURCES)
 clean:
 	rm -f fork_compressor fork_decompressor
 
-.PHONY: all clean
+distclean: clean
+	rm -f fork_test_output.huff
+	rm -rf fork_extracted_output
+
+.PHONY: all clean distclean

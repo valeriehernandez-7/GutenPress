@@ -20,4 +20,8 @@ pthread_decompressor: pthread_decompressor.c $(COMMON_SOURCES)
 clean:
 	rm -f pthread_compressor pthread_decompressor
 
-.PHONY: all clean
+distclean: clean
+	rm -f pthread_test_output.huff
+	rm -rf pthread_extracted_output
+
+.PHONY: all clean distclean

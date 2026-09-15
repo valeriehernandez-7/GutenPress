@@ -19,4 +19,8 @@ serial_decompressor: serial_decompressor.c $(COMMON_SOURCES)
 clean:
 	rm -f serial_compressor serial_decompressor
 
-.PHONY: all clean
+distclean: clean
+	rm -f test_output.huff
+	rm -rf extracted_output
+
+.PHONY: all clean distclean
