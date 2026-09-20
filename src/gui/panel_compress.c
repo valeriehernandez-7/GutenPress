@@ -159,6 +159,23 @@ static GtkWidget *loadPanelIcon(const char *iconFileName, int pixelSize)
     return image;
 }
 
+// Fired every time this panel becomes visible again (including
+// returning to it after navigating away), since GtkStack keeps pages
+// alive rather than recreating them — without this, a second visit
+// would still show the previous run's folders, name, and result.
+static void onCompressPanelMapped(GtkWidget* widget, gpointer userData) {
+    (void)widget;
+    CompressPanelWidgets* widgets = (CompressPanelWidgets*)userData;
+
+    gtk_file_chooser_unselect_all(GTK_FILE_CHOOSER(widgets->inputFolderChooser));
+    gtk_file_chooser_unselect_all(GTK_FILE_CHOOSER(widgets->outputFolderChooser));
+    gtk_entry_set_text(GTK_ENTRY(widgets->outputNameEntry), "output");
+    gtk_combo_box_set_active(GTK_COMBO_BOX(widgets->methodCombo), 0);
+    gtk_label_set_text(GTK_LABEL(widgets->resultLabel), "");
+    gtk_style_context_remove_class(gtk_widget_get_style_context(widgets->resultLabel), "status-success");
+    gtk_style_context_remove_class(gtk_widget_get_style_context(widgets->resultLabel), "status-error");
+}
+
 GtkWidget *buildCompressPanel(GtkStack *stack)
 {
     CompressPanelWidgets *widgets = malloc(sizeof(CompressPanelWidgets));
@@ -240,6 +257,8 @@ GtkWidget *buildCompressPanel(GtkStack *stack)
     gtk_widget_set_size_request(resultScroll, -1, 180);
     gtk_container_add(GTK_CONTAINER(resultScroll), widgets->resultLabel);
     gtk_box_pack_start(GTK_BOX(container), resultScroll, TRUE, TRUE, 0);
+
+    g_signal_connect(container, "map", G_CALLBACK(onCompressPanelMapped), widgets);
 
     return container;
 }
