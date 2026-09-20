@@ -17,12 +17,12 @@ window {
 .card-title {
     color: #242320;
     font-weight: 600;
-    font-size: 14px;
+    font-size: 16px;
 }
 
 .card-subtitle {
     color: #6B6A64;
-    font-size: 12px;
+    font-size: 13px;
 }
 
 .back-button {
@@ -35,15 +35,32 @@ window {
     font-size: 18px;
 }
 
-.accent-button {
+/* Explicit label targeting: GTK3/Adwaita does not reliably propagate a
+   button's own "color" property down to its internal label, so the
+   label needs its own selector or the text can render invisible. */
+button.accent-button,
+button.accent-button:hover,
+button.accent-button:focus,
+button.accent-button:active {
     background-color: #3B6EA5;
-    color: #FFFFFF;
+    background-image: none;
+    border: none;
+    box-shadow: none;
+    padding: 8px 18px;
     border-radius: 8px;
-    padding: 8px 16px;
 }
 
-.accent-button:hover {
-    background-color: #325D8C;
+button.accent-button label {
+    color: #FFFFFF;
+    font-weight: 600;
+}
+
+button.accent-button:disabled {
+    background-color: #A9C0D6;
+}
+
+button.accent-button:disabled label {
+    color: #FFFFFF;
 }
 
 .status-success {

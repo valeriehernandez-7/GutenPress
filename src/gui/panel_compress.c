@@ -7,9 +7,6 @@
 #include <string.h>
 #include <stdlib.h>
 
-// Maps each combo box entry to the executable that implements it, so
-// adding a fourth version later (if ever) means touching only this
-// array, not the click handler's logic.
 typedef struct
 {
     const char *label;
@@ -17,15 +14,12 @@ typedef struct
 } MethodOption;
 
 static const MethodOption COMPRESS_METHODS[] = {
-    {"Serial", "../serial/serial_compressor"},
-    {"fork() + IPC", "../fork_ipc/fork_compressor"},
-    {"pthread + memoria compartida", "../pthreads/pthread_compressor"},
+    {"Secuencial (serial)", "../serial/serial_compressor"},
+    {"Paralelo por procesos (fork + IPC)", "../fork_ipc/fork_compressor"},
+    {"Paralelo por hilos (pthreads)", "../pthreads/pthread_compressor"},
 };
 #define COMPRESS_METHOD_COUNT 3
 
-// Bundles every widget the run button's handler needs to read from or
-// update, so a single pointer can be passed through g_object_set_data
-// instead of relying on global variables.
 typedef struct
 {
     GtkWidget *inputFolderChooser;
@@ -37,9 +31,6 @@ typedef struct
     GtkWidget *resultLabel;
 } CompressPanelWidgets;
 
-// Carries data from the background thread back to the main thread.
-// Allocated on the heap because the thread and the GTK idle callback
-// run at different times — it must outlive the function that created it.
 typedef struct
 {
     CompressPanelWidgets *widgets;
@@ -48,8 +39,6 @@ typedef struct
 
 static char *buildOutputPath(const char *outputFolder, const char *enteredName)
 {
-    // Strips a trailing ".huff" the user may have typed manually, so
-    // the extension is never doubled regardless of what they entered.
     size_t nameLength = strlen(enteredName);
     if (nameLength >= 5 && strcmp(enteredName + nameLength - 5, ".huff") == 0)
     {
@@ -61,10 +50,6 @@ static char *buildOutputPath(const char *outputFolder, const char *enteredName)
     return outputPath;
 }
 
-// Runs on the GTK main thread (scheduled via g_idle_add), so this is
-// the only place in this panel allowed to touch widgets after the
-// background thread starts. Returning G_SOURCE_REMOVE tells GLib this
-// idle callback should not be called again.
 static gboolean applyCompressResultOnMainThread(gpointer userData)
 {
     CompressResultMessage *message = (CompressResultMessage *)userData;
@@ -76,7 +61,7 @@ static gboolean applyCompressResultOnMainThread(gpointer userData)
     if (message->result.wasSuccessful)
     {
         char labelText[2200];
-        snprintf(labelText, sizeof(labelText), "Compresion exitosa (%.3f s)\n\n%s",
+        snprintf(labelText, sizeof(labelText), "Compresión completada en %.3f segundos.\n\n%s",
                  message->result.elapsedSeconds, message->result.capturedOutputTail);
         gtk_label_set_text(GTK_LABEL(widgets->resultLabel), labelText);
         gtk_style_context_remove_class(gtk_widget_get_style_context(widgets->resultLabel), "status-error");
@@ -85,7 +70,7 @@ static gboolean applyCompressResultOnMainThread(gpointer userData)
     else
     {
         char labelText[2200];
-        snprintf(labelText, sizeof(labelText), "La compresion fallo (%.3f s)\n\n%s",
+        snprintf(labelText, sizeof(labelText), "La compresión falló despues de %.3f segundos.\n\n%s",
                  message->result.elapsedSeconds, message->result.capturedOutputTail);
         gtk_label_set_text(GTK_LABEL(widgets->resultLabel), labelText);
         gtk_style_context_remove_class(gtk_widget_get_style_context(widgets->resultLabel), "status-success");
@@ -96,9 +81,6 @@ static gboolean applyCompressResultOnMainThread(gpointer userData)
     return G_SOURCE_REMOVE;
 }
 
-// Runs entirely off the GTK main thread: process_runner's fork/exec/wait
-// is safe here since it never touches a widget directly. Only the
-// g_idle_add call at the end crosses back into GTK-safe territory.
 static void *runCompressionInBackground(void *argument)
 {
     CompressResultMessage *message = (CompressResultMessage *)argument;
@@ -145,14 +127,13 @@ static void onCompressButtonClicked(GtkButton *button, gpointer userData)
 
     gtk_widget_set_sensitive(widgets->runButton, FALSE);
     gtk_spinner_start(GTK_SPINNER(widgets->spinner));
-    gtk_label_set_text(GTK_LABEL(widgets->resultLabel), "Comprimiendo...");
+    gtk_label_set_text(GTK_LABEL(widgets->resultLabel), "Comprimiendo, por favor espera...");
+    gtk_style_context_remove_class(gtk_widget_get_style_context(widgets->resultLabel), "status-success");
+    gtk_style_context_remove_class(gtk_widget_get_style_context(widgets->resultLabel), "status-error");
 
     CompressResultMessage *message = malloc(sizeof(CompressResultMessage));
     message->widgets = widgets;
 
-    // Detached: nothing needs to pthread_join this thread, since the
-    // g_idle_add call at its end is how it reports back — there is no
-    // result to collect by joining.
     pthread_t backgroundThread;
     pthread_create(&backgroundThread, NULL, runCompressionInBackground, message);
     pthread_detach(backgroundThread);
@@ -187,22 +168,24 @@ GtkWidget *buildCompressPanel(GtkStack *stack)
     gtk_widget_set_margin_end(container, 20);
     gtk_widget_set_margin_top(container, 20);
 
-    // --- Header: back button + title ---
+    // --- Header: back button + page icon + title ---
     GtkWidget *headerBox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
     GtkWidget *backButton = gtk_button_new();
     gtk_style_context_add_class(gtk_widget_get_style_context(backButton), "back-button");
     gtk_container_add(GTK_CONTAINER(backButton), loadPanelIcon("back.svg", 18));
     g_signal_connect(backButton, "clicked", G_CALLBACK(onBackToMenuClicked), stack);
 
+    GtkWidget *pageIcon = loadPanelIcon("compress.svg", 22);
     GtkWidget *titleLabel = gtk_label_new("Comprimir");
     gtk_style_context_add_class(gtk_widget_get_style_context(titleLabel), "panel-title");
 
     gtk_box_pack_start(GTK_BOX(headerBox), backButton, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(headerBox), pageIcon, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(headerBox), titleLabel, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(container), headerBox, FALSE, FALSE, 8);
 
     // --- Input folder ---
-    GtkWidget *inputLabel = gtk_label_new("Carpeta a comprimir:");
+    GtkWidget *inputLabel = gtk_label_new("Selecciona la carpeta que deseas comprimir:");
     gtk_widget_set_halign(inputLabel, GTK_ALIGN_START);
     widgets->inputFolderChooser = gtk_file_chooser_button_new("Elige una carpeta",
                                                               GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER);
@@ -210,7 +193,7 @@ GtkWidget *buildCompressPanel(GtkStack *stack)
     gtk_box_pack_start(GTK_BOX(container), widgets->inputFolderChooser, FALSE, FALSE, 0);
 
     // --- Method selector ---
-    GtkWidget *methodLabel = gtk_label_new("Metodo:");
+    GtkWidget *methodLabel = gtk_label_new("Elige el método de compresión a utilizar:");
     gtk_widget_set_halign(methodLabel, GTK_ALIGN_START);
     widgets->methodCombo = gtk_combo_box_text_new();
     for (int i = 0; i < COMPRESS_METHOD_COUNT; i++)
@@ -222,14 +205,14 @@ GtkWidget *buildCompressPanel(GtkStack *stack)
     gtk_box_pack_start(GTK_BOX(container), widgets->methodCombo, FALSE, FALSE, 0);
 
     // --- Output folder + filename ---
-    GtkWidget* outputFolderLabel = gtk_label_new("Carpeta donde guardar el resultado:");
+    GtkWidget *outputFolderLabel = gtk_label_new("Selecciona dónde guardar el archivo comprimido:");
     gtk_widget_set_halign(outputFolderLabel, GTK_ALIGN_START);
     widgets->outputFolderChooser = gtk_file_chooser_button_new("Elige una carpeta",
-        GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER);
+                                                               GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER);
     gtk_box_pack_start(GTK_BOX(container), outputFolderLabel, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(container), widgets->outputFolderChooser, FALSE, FALSE, 0);
 
-    GtkWidget* outputNameLabel = gtk_label_new("Nombre del archivo (sin extension):");
+    GtkWidget *outputNameLabel = gtk_label_new("Nombre para el archivo comprimido (se guardará como .huff):");
     gtk_widget_set_halign(outputNameLabel, GTK_ALIGN_START);
     widgets->outputNameEntry = gtk_entry_new();
     gtk_entry_set_text(GTK_ENTRY(widgets->outputNameEntry), "output");
