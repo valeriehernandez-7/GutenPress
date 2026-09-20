@@ -1,0 +1,55 @@
+window {
+    background-color: #F5F5F3;
+}
+
+.menu-card {
+    background-color: #FFFFFF;
+    border: 1px solid #E2E0DA;
+    border-radius: 10px;
+    padding: 18px;
+}
+
+.menu-card:hover {
+    border-color: #3B6EA5;
+    background-color: #FAFAF8;
+}
+
+.card-title {
+    color: #242320;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.card-subtitle {
+    color: #6B6A64;
+    font-size: 12px;
+}
+
+.back-button {
+    color: #3B6EA5;
+}
+
+.panel-title {
+    color: #242320;
+    font-weight: 600;
+    font-size: 18px;
+}
+
+.accent-button {
+    background-color: #3B6EA5;
+    color: #FFFFFF;
+    border-radius: 8px;
+    padding: 8px 16px;
+}
+
+.accent-button:hover {
+    background-color: #325D8C;
+}
+
+.status-success {
+    color: #3B7A4A;
+}
+
+.status-error {
+    color: #B0453B;
+}

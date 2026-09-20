@@ -1,13 +1,16 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -std=c11
-LDLIBS = -lpthread
+CFLAGS = -Wall -Wextra -std=c11 `pkg-config --cflags gtk+-3.0`
+LDLIBS = -lpthread `pkg-config --libs gtk+-3.0`
 
-all: test_process_runner
+all: gutenpress test_process_runner
 
-test_process_runner: test_process_runner.c process_runner.c
+gutenpress: main.c process_runner.c
 	$(CC) $(CFLAGS) $^ -o $@ $(LDLIBS)
 
+test_process_runner: test_process_runner.c process_runner.c
+	gcc -Wall -Wextra -std=c11 $^ -o $@ -lpthread
+
 clean:
-	rm -f test_process_runner
+	rm -f gutenpress test_process_runner
 
 .PHONY: all clean
