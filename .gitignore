@@ -25,7 +25,8 @@ src/pthreads/pthread_compressor
 src/pthreads/pthread_decompressor
 
 # GUI binary
-src/gui/compressor_gui
+src/gui/gutenpress
+src/gui/test_process_runner
 
 # Compressed archive output from manual testing
 *.huff
