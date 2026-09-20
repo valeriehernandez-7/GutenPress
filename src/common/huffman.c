@@ -1,6 +1,7 @@
 #include "huffman.h"
 
 #include <stdlib.h>
+#include <stdbool.h>
 
 #define MAX_DECODE_BIT_LENGTH 32
 
@@ -121,35 +122,15 @@ void extractCodeLengths(const HuffmanNode *root, uint8_t outCodeLengths[SYMBOL_A
     walkTreeForCodeLengths(root, 0, outCodeLengths);
 }
 
-// Symbols are ordered by (codeLength, symbol value) because that is the
-// order canonical Huffman assigns codes in: shortest codes first, and
-// ties broken by symbol value so encoder and decoder always agree.
-static int compareBySymbolThenLength(const void *firstPointer, const void *secondPointer, uint8_t codeLengths[SYMBOL_ALPHABET_SIZE])
-{
-    int first = *(const int *)firstPointer;
-    int second = *(const int *)secondPointer;
-
-    if (codeLengths[first] != codeLengths[second])
-    {
-        return codeLengths[first] - codeLengths[second];
-    }
-    return first - second;
-}
-
-// qsort's comparator can't take extra context directly, so this small
-// wrapper reaches the code-length table through a file-scope pointer
-// set right before sorting.
-static uint8_t *codeLengthsForSort;
-static int qsortCompare(const void *firstPointer, const void *secondPointer)
-{
-    return compareBySymbolThenLength(firstPointer, secondPointer, codeLengthsForSort);
-}
-
 void buildCanonicalCodes(const uint8_t codeLengths[SYMBOL_ALPHABET_SIZE],
                          CanonicalCode outCodes[SYMBOL_ALPHABET_SIZE])
 {
-    int usedSymbols[SYMBOL_ALPHABET_SIZE];
-    int usedSymbolCount = 0;
+    // Counting sort by length instead of qsort: every symbol's length
+    // is a small integer (0-32), so bucketing by length directly is
+    // both faster than a comparison sort and, critically, uses no
+    // shared mutable state — safe to call from multiple pthreads at
+    // once, unlike a qsort comparator reaching through a global.
+    int countPerLength[MAX_DECODE_BIT_LENGTH + 1] = {0};
 
     for (int symbol = 0; symbol < SYMBOL_ALPHABET_SIZE; symbol++)
     {
@@ -157,29 +138,29 @@ void buildCanonicalCodes(const uint8_t codeLengths[SYMBOL_ALPHABET_SIZE],
         outCodes[symbol].length = codeLengths[symbol];
         if (codeLengths[symbol] > 0)
         {
-            usedSymbols[usedSymbolCount++] = symbol;
+            countPerLength[codeLengths[symbol]]++;
         }
     }
 
-    codeLengthsForSort = (uint8_t *)codeLengths;
-    qsort(usedSymbols, usedSymbolCount, sizeof(int), qsortCompare);
-
     uint32_t nextCode = 0;
-    uint8_t previousLength = usedSymbolCount > 0 ? codeLengths[usedSymbols[0]] : 0;
-
-    for (int i = 0; i < usedSymbolCount; i++)
+    for (int length = 1; length <= MAX_DECODE_BIT_LENGTH; length++)
     {
-        int symbol = usedSymbols[i];
-        uint8_t currentLength = codeLengths[symbol];
-
-        // Every time the code length grows, the running code must shift
-        // left to make room for the extra bit(s) — this is what keeps
-        // canonical codes prefix-free without ever inspecting the tree.
-        nextCode <<= (currentLength - previousLength);
-
-        outCodes[symbol].code = nextCode;
-        nextCode++;
-        previousLength = currentLength;
+        nextCode <<= 1;
+        if (countPerLength[length] == 0)
+        {
+            continue;
+        }
+        // Within a length, canonical Huffman assigns codes in symbol
+        // order, so a simple ascending scan reproduces exactly what
+        // the old (symbol, length)-sorted qsort produced.
+        for (int symbol = 0; symbol < SYMBOL_ALPHABET_SIZE; symbol++)
+        {
+            if (codeLengths[symbol] == length)
+            {
+                outCodes[symbol].code = nextCode;
+                nextCode++;
+            }
+        }
     }
 }
 
@@ -207,36 +188,29 @@ static void buildCanonicalDecodeTable(const uint8_t codeLengths[SYMBOL_ALPHABET_
         table->firstCodeForLength[length] = 0;
     }
 
-    int usedSymbols[SYMBOL_ALPHABET_SIZE];
-    int usedCount = 0;
-    for (int symbol = 0; symbol < SYMBOL_ALPHABET_SIZE; symbol++)
+    // Same counting-sort approach as buildCanonicalCodes: walking
+    // lengths in ascending order and symbols in ascending order within
+    // each length reproduces the identical ordering, with no shared
+    // mutable state between concurrent calls.
+    int nextSlot = 0;
+    for (int length = 1; length <= MAX_DECODE_BIT_LENGTH; length++)
     {
-        if (codeLengths[symbol] > 0)
+        bool isFirstAtThisLength = true;
+        for (int symbol = 0; symbol < SYMBOL_ALPHABET_SIZE; symbol++)
         {
-            usedSymbols[usedCount++] = symbol;
-        }
-    }
-
-    // Reuses the exact comparator buildCanonicalCodes sorts with, so
-    // this table's symbol order lines up perfectly with codes[] —
-    // the two must never disagree about ordering.
-    codeLengthsForSort = (uint8_t *)codeLengths;
-    qsort(usedSymbols, usedCount, sizeof(int), qsortCompare);
-
-    int previousLength = 0;
-    for (int i = 0; i < usedCount; i++)
-    {
-        int symbol = usedSymbols[i];
-        int length = codeLengths[symbol];
-
-        table->sortedSymbols[i] = (uint8_t)symbol;
-        table->countForLength[length]++;
-
-        if (length != previousLength)
-        {
-            table->firstIndexForLength[length] = i;
-            table->firstCodeForLength[length] = codes[symbol].code;
-            previousLength = length;
+            if (codeLengths[symbol] != length)
+            {
+                continue;
+            }
+            if (isFirstAtThisLength)
+            {
+                table->firstIndexForLength[length] = nextSlot;
+                table->firstCodeForLength[length] = codes[symbol].code;
+                isFirstAtThisLength = false;
+            }
+            table->sortedSymbols[nextSlot] = (uint8_t)symbol;
+            table->countForLength[length]++;
+            nextSlot++;
         }
     }
 }
