@@ -1,4 +1,5 @@
 #include <gtk/gtk.h>
+#include "panel_compress.h"
 
 // Icon files live next to the executable, in icons/<name>.svg — loaded
 // at a fixed pixel size rather than relying on GTK_ICON_SIZE_* enums,
@@ -114,7 +115,7 @@ int main(int argc, char* argv[]) {
     gtk_stack_add_named(GTK_STACK(stack), menuGrid, "menu");
 
     // --- Stub pages (placeholders until each panel's real fields are built) ---
-    GtkWidget* compressPage = buildStubPanel(GTK_STACK(stack), "Comprimir", "(panel pendiente)");
+        GtkWidget* compressPage = buildCompressPanel(GTK_STACK(stack));
     GtkWidget* decompressPage = buildStubPanel(GTK_STACK(stack), "Descomprimir", "(panel pendiente)");
     GtkWidget* compareCompressPage = buildStubPanel(GTK_STACK(stack), "Análisis Comparativo de Compresión", "(panel pendiente)");
     GtkWidget* compareDecompressPage = buildStubPanel(GTK_STACK(stack), "Análisis Comparativo de Descompresión", "(panel pendiente)");
