@@ -4,7 +4,7 @@ LDLIBS = -lpthread `pkg-config --libs gtk+-3.0`
 
 all: gutenpress test_process_runner
 
-gutenpress: main.c process_runner.c panel_compress.c
+gutenpress: main.c process_runner.c panel_compress.c panel_decompress.c
 	$(CC) $(CFLAGS) $^ -o $@ $(LDLIBS)
 
 test_process_runner: test_process_runner.c process_runner.c
