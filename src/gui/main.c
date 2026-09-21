@@ -1,6 +1,7 @@
 #include <gtk/gtk.h>
 #include "panel_compress.h"
 #include "panel_decompress.h"
+#include "panel_compare_compress.h"
 
 static GtkWidget *loadIconImage(const char *iconFileName, int pixelSize)
 {
@@ -125,8 +126,8 @@ int main(int argc, char *argv[])
     gtk_stack_add_named(GTK_STACK(stack), menuGrid, "menu");
 
     GtkWidget *compressPage = buildCompressPanel(GTK_STACK(stack));
-        GtkWidget* decompressPage = buildDecompressPanel(GTK_STACK(stack));
-    GtkWidget *compareCompressPage = buildStubPanel(GTK_STACK(stack), "scan-compress.svg", "Analizar Compresión", "(panel pendiente)");
+    GtkWidget *decompressPage = buildDecompressPanel(GTK_STACK(stack));
+    GtkWidget *compareCompressPage = buildCompareCompressPanel(GTK_STACK(stack));
     GtkWidget *compareDecompressPage = buildStubPanel(GTK_STACK(stack), "scan-decompress.svg", "Analizar Descompresión", "(panel pendiente)");
 
     gtk_stack_add_named(GTK_STACK(stack), compressPage, "compress");
