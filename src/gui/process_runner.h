@@ -10,15 +10,17 @@
 // three versions (serial, fork/IPC, pthreads), regardless of how each
 // one internally measures or doesn't measure its own work.
 typedef struct {
-    bool   wasSuccessful;
-    double elapsedSeconds;
-    char   capturedOutputTail[2048];   // last portion of stdout, for error diagnostics
+  bool wasSuccessful;
+  double elapsedSeconds;
+  char
+      capturedOutputTail[2048]; // last portion of stdout, for error diagnostics
 } ProcessResult;
 
 // Runs executablePath with the given arguments (argv-style, NULL
 // terminated after the last real argument), waits for it to finish,
 // and reports how long it took. Safe to call from any thread — it does
 // not touch GTK widgets itself.
-ProcessResult runProcessAndMeasureTime(const char* executablePath, char* const argv[]);
+ProcessResult runProcessAndMeasureTime(const char *executablePath,
+                                       char *const argv[]);
 
 #endif // PROCESS_RUNNER_H

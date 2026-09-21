@@ -6,6 +6,6 @@
 // Builds the "Descomprimir" panel: .huff file chooser, method selector,
 // destination folder chooser, output folder name entry, run button,
 // and a result area.
-GtkWidget* buildDecompressPanel(GtkStack* stack);
+GtkWidget *buildDecompressPanel(GtkStack *stack);
 
 #endif // PANEL_DECOMPRESS_H

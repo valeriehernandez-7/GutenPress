@@ -3,6 +3,6 @@
 
 #include <gtk/gtk.h>
 
-GtkWidget* buildCompareCompressPanel(GtkStack* stack);
+GtkWidget *buildCompareCompressPanel(GtkStack *stack);
 
 #endif // PANEL_COMPARE_COMPRESS_H

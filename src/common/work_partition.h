@@ -11,6 +11,7 @@ int detectWorkerCount(int itemCount);
 // as possible: the first (itemCount % workerCount) workers get one
 // extra item each. outStartIndices must have workerCount+1 entries;
 // worker i's slice is items[outStartIndices[i] .. outStartIndices[i+1]).
-void partitionItemsAcrossWorkers(int itemCount, int workerCount, int* outStartIndices);
+void partitionItemsAcrossWorkers(int itemCount, int workerCount,
+                                 int *outStartIndices);
 
 #endif // WORK_PARTITION_H
