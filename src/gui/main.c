@@ -2,6 +2,7 @@
 #include "panel_compress.h"
 #include "panel_decompress.h"
 #include "panel_compare_compress.h"
+#include "panel_compare_decompress.h"
 
 static GtkWidget *loadIconImage(const char *iconFileName, int pixelSize)
 {
@@ -55,40 +56,6 @@ static void onBackButtonClicked(GtkButton *button, gpointer userData)
     gtk_stack_set_visible_child_name(stack, targetPage);
 }
 
-// Every non-compress stub page shares this header shape: back button,
-// a small icon identifying the page, and the title - the same visual
-// pattern buildCompressPanel now follows for consistency.
-static GtkWidget *buildStubPanel(GtkStack *stack, const char *iconFileName, const char *title, const char *placeholderText)
-{
-    GtkWidget *container = gtk_box_new(GTK_ORIENTATION_VERTICAL, 8);
-    gtk_widget_set_margin_start(container, 20);
-    gtk_widget_set_margin_end(container, 20);
-    gtk_widget_set_margin_top(container, 20);
-
-    GtkWidget *headerBox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
-
-    GtkWidget *backButton = gtk_button_new();
-    gtk_style_context_add_class(gtk_widget_get_style_context(backButton), "back-button");
-    gtk_container_add(GTK_CONTAINER(backButton), loadIconImage("back.svg", 18));
-    g_object_set_data(G_OBJECT(backButton), "target-page", (gpointer) "menu");
-    g_signal_connect(backButton, "clicked", G_CALLBACK(onBackButtonClicked), stack);
-
-    GtkWidget *pageIcon = loadIconImage(iconFileName, 22);
-    GtkWidget *titleLabel = gtk_label_new(title);
-    gtk_style_context_add_class(gtk_widget_get_style_context(titleLabel), "panel-title");
-
-    gtk_box_pack_start(GTK_BOX(headerBox), backButton, FALSE, FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(headerBox), pageIcon, FALSE, FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(headerBox), titleLabel, FALSE, FALSE, 0);
-
-    GtkWidget *placeholder = gtk_label_new(placeholderText);
-
-    gtk_box_pack_start(GTK_BOX(container), headerBox, FALSE, FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(container), placeholder, FALSE, FALSE, 12);
-
-    return container;
-}
-
 int main(int argc, char *argv[])
 {
     gtk_init(&argc, &argv);
@@ -128,7 +95,7 @@ int main(int argc, char *argv[])
     GtkWidget *compressPage = buildCompressPanel(GTK_STACK(stack));
     GtkWidget *decompressPage = buildDecompressPanel(GTK_STACK(stack));
     GtkWidget *compareCompressPage = buildCompareCompressPanel(GTK_STACK(stack));
-    GtkWidget *compareDecompressPage = buildStubPanel(GTK_STACK(stack), "scan-decompress.svg", "Analizar Descompresión", "(panel pendiente)");
+    GtkWidget *compareDecompressPage = buildCompareDecompressPanel(GTK_STACK(stack));
 
     gtk_stack_add_named(GTK_STACK(stack), compressPage, "compress");
     gtk_stack_add_named(GTK_STACK(stack), decompressPage, "decompress");
