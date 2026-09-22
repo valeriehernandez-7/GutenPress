@@ -108,7 +108,7 @@ Install the dependencies on Debian:
 
 ```bash
 sudo apt update
-sudo apt install build-essential pkg-config libgtk-3-dev libssl-dev
+sudo apt install git build-essential pkg-config libgtk-3-dev libssl-dev
 ```
 
 
@@ -173,12 +173,13 @@ Each version provides a compressor (directory → `.huff` archive) and a decompr
 ./src/pthreads/pthread_decompressor  <input_archive.huff> <output_directory>
 ```
 
-Example with the included corpus:
+Example with the included corpus (outputs go to `test_output/`, which is git-ignored and removed by `make distclean`):
 
 ```bash
-./src/serial/serial_compressor src/gutenberg_corpus corpus.huff
-./src/serial/serial_decompressor corpus.huff restored_corpus
-diff -rq src/gutenberg_corpus restored_corpus && echo "Identical"
+mkdir -p test_output
+./src/serial/serial_compressor src/gutenberg_corpus test_output/corpus.huff
+./src/serial/serial_decompressor test_output/corpus.huff test_output/restored_corpus
+diff -rq src/gutenberg_corpus test_output/restored_corpus && echo "Identical"
 ```
 
 ### 5. GUI
@@ -186,6 +187,8 @@ diff -rq src/gutenberg_corpus restored_corpus && echo "Identical"
 ```bash
 make run
 ```
+
+The GUI loads its icons, stylesheet and the compressor binaries through paths relative to `src/gui/`, so always launch it with `make run` (or `cd src/gui && ./gutenpress`), not from another directory.
 
 The main menu offers four panels:
 
