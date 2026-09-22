@@ -11,6 +11,7 @@ src/common/test_encode_decode
 src/common/test_md5
 src/common/test_file_format
 src/common/test_archive.huff
+test_output/
 
 # serial/ compressor and decompressor binaries
 src/serial/serial_compressor
