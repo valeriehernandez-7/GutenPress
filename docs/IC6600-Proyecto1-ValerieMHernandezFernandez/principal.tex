@@ -5,7 +5,7 @@
 \usepackage[spanish]{babel}
 
 % Soporte para buenas urls e hipervínculos entre secciones
-\usepackage{hyperref}
+\usepackage[hidelinks]{hyperref}
 
 % Citas y referencias en formato APA
 % Si quiere las citas y referencias en IEEE comente esta línea
@@ -29,26 +29,30 @@
     breakatwhitespace=false,
 }
 
-
-\def \unidad{Nombre de la escuela o unidad}
-\def \programa{Nombre del programa o carrera}
-\def \curso{Código - Nombre del curso}
-\def \titulo{Título del Informe}
-\def \subtitulo {Subtítulo}
-\def \autores{
-    Nombre del primer autor\\
-    Correo electrónico\\
-    Carnet\\
-    
-    \vspace{0.5cm}
-    
-    Nombre del segundo autor\\
-    Correo electrónico\\
-    Carnet
+% Bloques de comandos de terminal (sin números de línea)
+\lstdefinestyle{terminal}{
+    language=bash,
+    basicstyle=\footnotesize\ttfamily,
+    numbers=none,
+    frame=single,
+    columns=fullflexible,
+    keepspaces=true,
 }
-\def \fecha{Febrero 2021}
+
+
+\def \unidad{Escuela de Ingeniería en Computación}
+\def \programa{Ingeniería en Computación}
+\def \curso{IC6600 - Principios de Sistemas Operativos}
+\def \titulo{Proyecto Programado 1}
+\def \subtitulo {GutenPress: compresión Huffman serial, paralela y concurrente}
+\def \autores{
+    Valerie M. Hernández Fernández\\
+    valeriehernandez@estudiantec.cr\\
+    2020010829
+}
+\def \fecha{Septiembre 2026}
 \def \lugar{
-    Provincia, 
+    San José, 
     Costa Rica
 }
 
@@ -60,135 +64,376 @@
 
 \tableofcontents
 
+% =====================================================================
 \chapter{Introducción}\label{intro}
+% =====================================================================
 
-Esta es una plantilla para trabajar documentos formales en \LaTeX para informes de trabajos del ITCR, fue diseñada para el curso Fundamentos de Organización de Computadoras.
-Esta plantilla utiliza el formato de citas y referencias de APA usando el paquete apacite.
+Este informe documenta GutenPress, un compresor y descompresor de directorios escrito en C que utiliza el algoritmo de Huffman y verifica la integridad de cada archivo mediante firmas MD5. El mismo algoritmo se implementó en tres versiones: una serial, una paralela basada en subprocesos creados con \texttt{fork()} que se comunican por IPC, y una concurrente basada en hilos POSIX que comparten memoria. Una interfaz gráfica en GTK ejecuta las tres versiones sobre el mismo directorio y presenta una tabla comparativa de sus resultados.
 
-Las tareas y trabajos universitarios deben entregarse en un formato formal que sigan ciertas reglas de estilo. 
-\LaTeX es una buena solución para redactar este tipo de documentos sin preocuparse por la estructura ni el diagramado.
+El conjunto de prueba está formado por los 100 libros más descargados de los últimos 30 días en Project Gutenberg, en formato de texto plano \cite{gutenberg}.
 
-\section{Antecedentes}\label{antecedentes}
+\section{Reseña histórica del algoritmo de Huffman}\label{historia}
 
-El matemático y científico en computación Donald Knuth diseñó TeX en 1978 como una respuesta a la necesidad de la época de redactar documentos formales con lenguaje matemático que los editores de texto de la época no podían solventar. En 1984 Leslie Lamport modificó TeX y creó una serie de comandos y macros más sencillos y con más herramientas. A esta versión Lamport le llamó \LaTeX \cite{lopez18}.
+La base teórica de la compresión sin pérdida proviene de la teoría de la información de Claude Shannon, quien en 1948 formalizó la medida de información de una fuente y mostró que existe un límite inferior, la entropía, para la cantidad promedio de bits necesaria para representar sus símbolos \cite{shannon48}. A partir de ese trabajo surgieron métodos de codificación de longitud variable, como el propuesto por Shannon y Robert Fano, que asignaban códigos más cortos a los símbolos más frecuentes, aunque sin garantizar el resultado óptimo.
 
-\chapter{Ejemplos}\label{ejemplos}
+En 1951, David A. Huffman era estudiante de posgrado en el Instituto Tecnológico de Massachusetts (MIT) y cursaba la materia de teoría de la información impartida por Fano. El profesor ofreció a sus estudiantes la opción de presentar un trabajo escrito en lugar del examen final, y el problema propuesto consistía en encontrar el código binario más eficiente. Tras meses sin avanzar, Huffman encontró la solución al construir el árbol de codificación desde abajo, a partir de los símbolos menos frecuentes, en lugar de dividir el alfabeto desde arriba como hacía el método de Shannon--Fano \cite{stix91}. El resultado se publicó en 1952 como un método para construir códigos de redundancia mínima \cite{huffman52}.
 
-\section{Figuras}\label{figuras}
-\begin{figure}
-    \centering
-    \includegraphics[width=0.8\linewidth]{figuras/maquinaDeEstados.jpg}
-    \caption{Ilustración de una máquina de estados finitos}
-    \label{fig:msf}
-\end{figure}
+Más de cuatro décadas después, la codificación de Huffman seguía presente en redes de computadoras, módems y televisión de alta definición \cite{stix91}. Una variante de especial importancia práctica es el código canónico, descrito por \citeA{schwartz64}, en el cual los códigos se derivan únicamente de sus longitudes. Esta propiedad permite guardar el código dentro de un archivo comprimido de forma muy compacta y es la variante que utiliza GutenPress.
 
-Las figuras nos permiten ilustrar conceptos de forma más directa. Adicionalmente muchos dominios emplean lenguajes gráficos para representar ciertos principios o procesos. La figura permite incorporar este tipo de herramientas visuales al documento. 
-La figura \ref{fig:msf} representa una máquina de estados finitos, nótese como la figura incorpora un texto descriptivo. Este texto es necesario para brindar mejor contexto a la imagen, especialmente cuando no se diagrama junto al texto que acompaña.
+\section{Explicación del algoritmo de Huffman}\label{explicacion}
 
-\section{Listas y Enumeraciones}\label{listas}
+El algoritmo de Huffman produce un \emph{código prefijo}: ninguna palabra de código es prefijo de otra, por lo que una secuencia de bits se puede decodificar de izquierda a derecha sin ambigüedad y sin separadores entre símbolos. Entre todos los códigos prefijo posibles para un conjunto de frecuencias dado, el de Huffman minimiza la longitud promedio de la codificación \cite{huffman52}.
 
-Las listas de viñetas y enumeraciones nos permiten organizar información y secuenciarla de forma visualmente agradable. Bien empleadas las listas pueden ayudar a organizar los datos presentados y establecer cierta noción de jerarquía.
-
-Una lista puede contener solamente algunos elementos simples:
-\begin{itemize}
-    \item ítem 1
-    \item ítem 2
-    \item ítem 3
-\end{itemize}
-
-Pero también se pueden emplear de formas más complejas e interesantes:
-
-\begin{itemize}
-    \item \textbf{Conceptos amplios:} Por ejemplo una lista puede usarse para representar ideas más complejas que pueden organizarse en algún tipo de jeraruía. 
-    Una lista de este tipo puede contener mucho texto, párrafos inclusive, y aún así mantener la indentación y estructura lineal que permite expresar la relación como parte de la información transmitida.
-    
-    Los elementos de la lista se pueden introducir con un encabezado en \textbf{negrita} que permita asociar los conceptos con sus definiciones. Similar a las entradas de un diccionario.
-    
-    \item \textbf{Contenido multinivel:} Otra aplicación de las listas es que permiten organizar contenido en estructuras jerárquicas. En \LaTeX una lista puede:
-    
-    \begin{itemize}
-        \item Anidarse dentro de otra lista
-        \item Mostrando múltiples elementos
-        \item Dentro de una estructura jerárquica
-        \begin{itemize}
-            \item Tan profunda
-            \item Como el autor
-            \item Lo requiera
-        \end{itemize}
-    \end{itemize}
-\end{itemize}
-
-Por supuesto si podemos hacer listas de viñetas, \LaTeX también nos da la posibilidad de usar enumeraciones:
+El algoritmo es voraz y se describe en tres pasos \shortcite{cormen22}:
 
 \begin{enumerate}
-    \item Las enumeraciones tienen las mismas propiedades.
-    \item La única diferencia es que los ítemes se identifican con números, no con viñetas.
-    \item Pero soportan:
-    \begin{enumerate}
-        \item texto corto
-        \item texto largo
-        \item multinivel
-        \item Inclusive es posible combinar ambas estrategias:
-        \begin{itemize}
-            \item Enumeraciones con listas adentro
-            \item Listas con enumeraciones adentro
-            \item Cualquier otra combinación que sea necesaria
-            
-        \end{itemize}
-    \end{enumerate}
+    \item Se cuenta la frecuencia de cada símbolo y se crea un nodo hoja por símbolo, con su frecuencia como peso. Todos los nodos se insertan en una cola de prioridad ordenada por peso.
+    \item Mientras quede más de un nodo en la cola, se extraen los dos de menor peso y se unen como hijos de un nodo nuevo cuyo peso es la suma de ambos. El nodo nuevo se vuelve a insertar en la cola.
+    \item El nodo que queda al final es la raíz del árbol. El código de cada símbolo es el camino desde la raíz hasta su hoja, donde ir a la izquierda aporta un 0 y a la derecha un 1.
 \end{enumerate}
 
-\section{Referencias Internas}\label{referencias}
-En el capítulo \ref{intro} se explica el propósito del documento y algunos antecedentes. Mientras que el capítulo \ref{ejemplos} se enfoca más en funcionalidades puntuales que pueden ser interesantes de \LaTeX. Como se puede apreciar, una de esas funcionalidades es la capacidad de referenciar internamente contenido, usando los comandos \textit{label} y \textit{ref} es posible citar otras partes del documento. Cualquier elemento numerado con una \textbf{etiqueta} se puede referenciar y \LaTeX usará la numeración correcta para referenciar el elemento donde se cite. Por ejemplo en esta sección se puede citar la figura \ref{fig:msf} o la sección \ref{antecedentes}. Una propiedad muy práctica de esta herramienta, es que combinada con el paquete \textbf{hyperref} permite que el documento se entrelace fácilmente, creando hipervínculos entre las secciones justo donde se referencian.
+Como los símbolos poco frecuentes se unen primero, quedan en los niveles más profundos del árbol y reciben los códigos más largos, mientras que los frecuentes quedan cerca de la raíz. Con $n$ símbolos distintos y una cola de prioridad implementada como montículo mínimo, la construcción del árbol toma tiempo $O(n \log n)$ \shortcite{cormen22}.
 
-Nótese que estas son referencias internas. Las citas bibliográficas tienen un comando especial: el comando \textbf{cite}.
+El cuadro \ref{tab:ejemplo} muestra un ejemplo con el texto \texttt{AAAAABBCD}. Los nodos \texttt{C} y \texttt{D} (peso 1) se unen primero en un nodo de peso 2; este se une con \texttt{B} (peso 2) en un nodo de peso 4, y finalmente este se une con \texttt{A} (peso 5) en la raíz. Con códigos de longitud fija se necesitarían 2 bits por símbolo, es decir 18 bits; con el código resultante se usan $5\cdot1 + 2\cdot2 + 1\cdot3 + 1\cdot3 = 15$ bits.
 
-\section{Código fuente}
-En temas de ingeniería es normal que necesitemos programar de vez en cuando. Para esto \LaTeX brinda funcionalidades para renderizar código fuente con un resultado bastante profesional.
-Por ejemplo podemos ver el código fuente de un \textit{Hola Mundo} en el lenguaje de programación C:
+\begin{table}[ht]
+    \centering
+    \begin{tabular}{|c|c|c|c|}
+        \hline
+        \textbf{Símbolo} & \textbf{Frecuencia} & \textbf{Longitud} & \textbf{Código canónico} \\
+        \hline
+        A & 5 & 1 & \texttt{0} \\
+        B & 2 & 2 & \texttt{10} \\
+        C & 1 & 3 & \texttt{110} \\
+        D & 1 & 3 & \texttt{111} \\
+        \hline
+    \end{tabular}
+    \caption{Código de Huffman para el texto \texttt{AAAAABBCD} (ejemplo propio)}
+    \label{tab:ejemplo}
+\end{table}
 
-\begin{lstlisting}
-#include <stdio.h>
+\section{Paralelismo y concurrencia}\label{paralelismo}
 
-int main() {
-   
-   printf("Hello, World!");
-   return 0;
-}
-\end{lstlisting}
+Aunque suelen usarse como sinónimos, los dos términos describen propiedades distintas de un sistema. Un sistema es \emph{concurrente} cuando permite que varias tareas avancen durante el mismo intervalo de tiempo, aunque no necesariamente en el mismo instante: en un procesador de un solo núcleo, el planificador alterna entre tareas y crea la apariencia de simultaneidad. Un sistema es \emph{paralelo} cuando puede ejecutar más de una tarea literalmente al mismo tiempo, lo cual requiere varios núcleos o procesadores. Por lo tanto, puede existir concurrencia sin paralelismo, pero el paralelismo implica tareas concurrentes que se ejecutan en unidades de procesamiento distintas \shortcite{silberschatz18}.
 
-Hay más herramientas para mostrar texto técnico. Por ejemplo el ambiente \textit{verbatim} permite mostrar texto con símbolos que normalmente están reservados para código de \LaTeX. Por ejemplo, estas son las primeras líneas de este documento:
+El mismo texto distingue además dos formas de dividir el trabajo: el \emph{paralelismo de datos}, en el que el mismo cálculo se aplica a subconjuntos distintos de los datos, y el \emph{paralelismo de tareas}, en el que se distribuyen operaciones diferentes \shortcite{silberschatz18}. GutenPress aplica paralelismo de datos: cada trabajador ejecuta el mismo algoritmo de compresión sobre un subconjunto diferente de los archivos del directorio.
 
-\begin{verbatim}
-\documentclass{report}
-\usepackage[utf8]{inputenc}
+En un sistema operativo tipo UNIX, estas ideas se pueden realizar con dos mecanismos. Los \emph{subprocesos} creados con \texttt{fork()} tienen espacios de memoria separados, por lo que deben comunicarse explícitamente mediante algún mecanismo de comunicación entre procesos (IPC) \cite{kerrisk10}. Los \emph{hilos} de un mismo proceso comparten la memoria global y el montículo, por lo que se comunican directamente a través de variables compartidas, pero necesitan sincronización para evitar condiciones de carrera \cite{manpthreads}. Las dos versiones paralelas de este proyecto corresponden a estos dos mecanismos.
 
-% Títulos automáticos en español
-\usepackage[spanish]{babel}
+% =====================================================================
+\chapter{Desarrollo}\label{desarrollo}
+% =====================================================================
 
-% Soporte para buenas urls e hipervínculos entre secciones
-\usepackage{hyperref}
-\end{verbatim}
+\section{Instrucciones de instalación y código fuente}\label{instalacion}
 
-\section{Más}
-\LaTeX tiene muchísimas características, tantas que es imposible cubrirlas todas en un sólo documento. Por eso voy a dejar una lista breve de algunos enlaces de interés que podrían ser útiles según el tipo de documento:
+El código fuente está disponible en el siguiente repositorio de GitHub:
+
+\begin{center}
+    \url{https://github.com/valeriehernandez-7/GutenPress}
+\end{center}
+
+Las instrucciones de esta sección se probaron en Debian 13 con el entorno de escritorio GNOME instalado con las opciones por defecto. Para seguirlas se necesita conexión a Internet y la contraseña de administrador del equipo. Los pasos deben realizarse en el orden indicado, y cada uno explica qué hace, qué se debe escribir y qué resultado se espera.
+
+\paragraph{Paso 1. Abrir una terminal.} Todos los comandos de esta sección se escriben en una terminal, que es la aplicación donde se ingresan instrucciones de texto. Para abrirla, haga clic en \textbf{Actividades}, en la esquina superior izquierda de la pantalla (o presione la tecla con el logotipo de Windows), escriba \texttt{terminal} en el buscador y presione \textbf{Enter}. Según la versión de GNOME, la aplicación puede aparecer con el nombre \textbf{Terminal} o \textbf{Consola}; cualquiera de las dos sirve.
+
+Se abrirá una ventana con una línea de texto que termina en el símbolo \texttt{\$}. Esa línea indica que la terminal está lista para recibir un comando. Para ejecutar cada comando de esta guía, escríbalo exactamente como aparece (o cópielo y péguelo con \textbf{Ctrl+Shift+V}) y presione \textbf{Enter}. Espere a que vuelva a aparecer la línea terminada en \texttt{\$} antes de escribir el siguiente comando.
+
+\paragraph{Paso 2. Instalar las herramientas necesarias.} El programa se distribuye como código fuente, por lo que antes de usarlo es necesario instalar las herramientas que lo descargan y lo convierten en programas ejecutables. Los paquetes que se instalan son:
 
 \begin{itemize}
-    \item \textbf{Tablas:} \\
-    \url{https://manualdelatex.com/tutoriales/tablas}
-    
-    \item \textbf{Bibliografía con Bibtex:}\\
-    \url{https://www.overleaf.com/learn/latex/bibliography_management_with_bibtex}
-    
-    \item \textbf{Expresiones Matemáticas:}\\
-    \url{http://metodos.fam.cie.uva.es/~latex/apuntes/apuntes3.pdf}
-    
-    \item \textbf{Presentaciones de Diapositivas:}\\
-    \url{https://www.overleaf.com/learn/latex/beamer}
-    
-    \item \textbf{Gráficas generadas en \LaTeX}\\
-    \url{https://www.overleaf.com/gallery/tagged/charts}    
+    \item \texttt{git}: descarga el código fuente desde GitHub.
+    \item \texttt{build-essential}: incluye el compilador de C (\texttt{gcc}) y la herramienta \texttt{make}, que automatiza la compilación.
+    \item \texttt{pkg-config}: indica al compilador dónde se encuentran las bibliotecas instaladas.
+    \item \texttt{libgtk-3-dev}: biblioteca GTK 3, necesaria para compilar la interfaz gráfica.
+    \item \texttt{libssl-dev}: biblioteca OpenSSL, que se usa para calcular las firmas MD5.
 \end{itemize}
+
+Escriba los siguientes dos comandos, uno a la vez. El primero actualiza la lista de paquetes disponibles y el segundo instala los paquetes anteriores:
+
+\begin{lstlisting}[style=terminal]
+sudo apt update
+sudo apt install -y git build-essential pkg-config libgtk-3-dev libssl-dev
+\end{lstlisting}
+
+La palabra \texttt{sudo} ejecuta el comando con permisos de administrador, por lo que la terminal solicitará la contraseña de su usuario. Mientras la escribe, la terminal no muestra ningún carácter ni asterisco; esto es normal. Escriba la contraseña completa y presione \textbf{Enter}. La instalación puede tardar varios minutos y mostrará muchas líneas de texto. Termina cuando vuelve a aparecer la línea terminada en \texttt{\$}.
+
+Si la terminal responde con un mensaje que indica que el usuario no está en el archivo \texttt{sudoers} (en inglés, \texttt{is not in the sudoers file}), significa que durante la instalación de Debian se definió una contraseña para el usuario administrador \texttt{root}, y en ese caso su usuario no tiene permiso para usar \texttt{sudo}. Ejecute entonces el siguiente comando, que realiza la misma instalación como usuario \texttt{root}. Cuando la terminal muestre \texttt{Contraseña:}, escriba la contraseña de \texttt{root} (no la de su usuario) y presione \textbf{Enter}:
+
+\begin{lstlisting}[style=terminal]
+su -c "apt update && apt install -y git build-essential pkg-config libgtk-3-dev libssl-dev"
+\end{lstlisting}
+
+\paragraph{Paso 3. Descargar el código fuente.} El siguiente comando descarga una copia completa del repositorio, incluidos el código y los 100 libros de prueba, en una carpeta nueva llamada \texttt{GutenPress} dentro de su carpeta personal:
+
+\begin{lstlisting}[style=terminal]
+git clone https://github.com/valeriehernandez-7/GutenPress.git
+\end{lstlisting}
+
+La descarga muestra su progreso y termina con una línea similar a \texttt{Resolving deltas: 100\%} (o su equivalente en español). A continuación, entre a la carpeta descargada con el comando \texttt{cd}, que cambia la carpeta en la que trabaja la terminal:
+
+\begin{lstlisting}[style=terminal]
+cd GutenPress
+\end{lstlisting}
+
+Para confirmar que se encuentra en la carpeta correcta, ejecute \texttt{ls}, que lista el contenido de la carpeta actual. Debe mostrar, entre otros, \texttt{docs}, \texttt{Makefile}, \texttt{README.md} y \texttt{src}. Todos los comandos de los pasos siguientes deben ejecutarse desde esta carpeta. Si cierra la terminal y la vuelve a abrir, repita el comando \texttt{cd GutenPress} antes de continuar.
+
+\paragraph{Paso 4. Compilar el programa.} Compilar significa traducir el código fuente en C a programas que el sistema puede ejecutar. El siguiente comando compila las tres versiones del compresor y descompresor (serial, paralela con \texttt{fork()} y concurrente con hilos) y la interfaz gráfica:
+
+\begin{lstlisting}[style=terminal]
+make
+\end{lstlisting}
+
+La terminal mostrará una línea por cada programa que se compila, cada una comenzando con \texttt{gcc}. La compilación terminó correctamente si vuelve a aparecer la línea terminada en \texttt{\$} y ninguna de las líneas mostradas contiene la palabra \texttt{Error}. Este paso solo es necesario la primera vez.
+
+\paragraph{Paso 5. Verificar la instalación (opcional).} Este paso no es obligatorio, pero permite comprobar que las tres versiones funcionan correctamente antes de usar la interfaz. El siguiente comando comprime los 100 libros de prueba con cada versión, los descomprime, y compara byte por byte los archivos obtenidos contra los originales:
+
+\begin{lstlisting}[style=terminal]
+make check
+\end{lstlisting}
+
+La prueba puede tardar algunos minutos y muestra una línea por cada archivo procesado. Termina correctamente cuando la última línea es \texttt{All versions passed the round-trip check.} Si alguna versión produce un archivo diferente al original, la prueba se detiene y muestra el nombre del archivo que no coincide. Los archivos generados por la prueba se guardan en la carpeta \texttt{test\_output}, que se puede borrar con el comando \texttt{make distclean}.
+
+\paragraph{Paso 6. Abrir la interfaz gráfica.} Para iniciar la interfaz, ejecute:
+
+\begin{lstlisting}[style=terminal]
+make run
+\end{lstlisting}
+
+Se abrirá una ventana titulada \textbf{GutenPress}. Mientras la ventana esté abierta, la terminal permanece ocupada y no acepta otros comandos; no la cierre, porque eso cerraría también la interfaz. Para terminar, cierre la ventana de GutenPress con el botón de cierre de la esquina superior derecha, y la terminal volverá a mostrar la línea terminada en \texttt{\$}.
+
+La interfaz siempre debe iniciarse con el comando \texttt{make run}, desde la carpeta \texttt{GutenPress}. Este comando abre la interfaz desde la carpeta \texttt{src/gui}, y la interfaz busca allí sus íconos, su hoja de estilos y los programas de las tres versiones.
+
+\paragraph{Paso 7. Usar la interfaz gráfica.} La ventana principal muestra cuatro opciones. Para elegir una, haga clic sobre ella; para volver a la ventana principal desde cualquier opción, haga clic en el botón con la flecha, a la izquierda del título.
+
+\begin{itemize}
+    \item \textbf{Comprimir:} comprime una carpeta con una sola versión. En \textbf{Selecciona la carpeta que deseas comprimir} elija la carpeta con los archivos. En la lista de métodos elija la versión que desea usar. En \textbf{Selecciona dónde guardar el archivo comprimido} elija la carpeta de destino y, en el campo de nombre, escriba el nombre del archivo (la extensión \texttt{.huff} se agrega automáticamente). Luego haga clic en \textbf{Comprimir}. Al terminar, se muestra el tiempo que tardó y el resumen de la compresión.
+
+    \item \textbf{Descomprimir:} expande un archivo \texttt{.huff} con una sola versión. En \textbf{Selecciona el archivo .huff a descomprimir} elija el archivo; en la lista de métodos, la versión; en \textbf{Selecciona dónde extraer los archivos}, la carpeta de destino; y en el campo de nombre, el nombre de la carpeta que se creará con los archivos extraídos. Luego haga clic en \textbf{Descomprimir}. Al terminar, se muestra el tiempo y cuántas firmas MD5 se verificaron.
+
+    \item \textbf{Analizar Compresión:} comprime la misma carpeta con las tres versiones, una tras otra, y muestra la tabla comparativa. En \textbf{Selecciona la carpeta que deseas comprimir} elija la carpeta; para usar los libros de prueba, navegue a la carpeta \texttt{GutenPress}, luego a \texttt{src} y seleccione \texttt{gutenberg\_corpus}. En \textbf{Selecciona la carpeta base donde guardar los resultados} elija dónde guardar los tres archivos comprimidos, y en \textbf{Nombre base para los archivos} escriba un nombre (por defecto, \texttt{comparacion}). Haga clic en \textbf{Ejecutar análisis}. Al terminar, la tabla muestra para cada versión el tiempo, el porcentaje de aceleración respecto a la versión serial, el tamaño original, el tamaño comprimido y el radio de compresión, y debajo indica cuál versión fue la más rápida.
+
+    \item \textbf{Analizar Descompresión:} descomprime el mismo archivo con las tres versiones y muestra la tabla comparativa. En \textbf{Selecciona el archivo .huff a descomprimir} elija uno de los archivos generados en el análisis de compresión; cualquiera de los tres sirve, porque el formato es el mismo para todas las versiones. En \textbf{Selecciona la carpeta base donde extraer los resultados} elija dónde crear las carpetas de salida, y en \textbf{Nombre base para las carpetas} escriba un nombre. Haga clic en \textbf{Ejecutar análisis}. La tabla muestra para cada versión el tiempo, el porcentaje de aceleración, los archivos extraídos, las firmas MD5 verificadas y el porcentaje de salud.
+\end{itemize}
+
+Mientras un análisis se ejecuta, la interfaz muestra un indicador de carga y el botón queda desactivado. Con los 100 libros de prueba, cada análisis puede tardar desde unos segundos hasta algunos minutos.
+
+\paragraph{Uso por línea de comandos (opcional).} Cada versión también se puede ejecutar sin la interfaz, desde la terminal y dentro de la carpeta \texttt{GutenPress}. Cada compresor recibe dos datos, separados por un espacio: la carpeta que se desea comprimir y el nombre del archivo \texttt{.huff} que se creará. Cada descompresor recibe el archivo \texttt{.huff} y la carpeta donde se extraerán los archivos, que se crea si no existe. Los comandos de las tres versiones son:
+
+\begin{lstlisting}[style=terminal]
+./src/serial/serial_compressor      <carpeta> <archivo.huff>
+./src/serial/serial_decompressor    <archivo.huff> <carpeta>
+./src/fork_ipc/fork_compressor      <carpeta> <archivo.huff>
+./src/fork_ipc/fork_decompressor    <archivo.huff> <carpeta>
+./src/pthreads/pthread_compressor   <carpeta> <archivo.huff>
+./src/pthreads/pthread_decompressor <archivo.huff> <carpeta>
+\end{lstlisting}
+
+Por ejemplo, los siguientes comandos comprimen los libros de prueba con la versión serial en el archivo \texttt{libros.huff} y luego los extraen en la carpeta \texttt{libros\_extraidos}:
+
+\begin{lstlisting}[style=terminal]
+./src/serial/serial_compressor src/gutenberg_corpus libros.huff
+./src/serial/serial_decompressor libros.huff libros_extraidos
+\end{lstlisting}
+
+Al terminar, cada programa imprime un resumen. El del descompresor debe indicar \texttt{MD5 verified: 100/100} y \texttt{Compression health: 100.00\%}.
+
+\section{Implementación del algoritmo de Huffman}\label{impl-huffman}
+
+\subsection{Organización del código}
+
+Las tres versiones comparten el mismo núcleo, ubicado en \texttt{src/common}, de modo que solo difiere la forma de repartir el trabajo. Los módulos principales son:
+
+\begin{itemize}
+    \item \textbf{\texttt{min\_heap}:} cola de prioridad implementada como montículo mínimo, usada para construir el árbol.
+    \item \textbf{\texttt{huffman}:} conteo de frecuencias, construcción del árbol, cálculo de longitudes, asignación de códigos canónicos, codificación y decodificación.
+    \item \textbf{\texttt{bit\_stream}:} escritura y lectura de bits individuales sobre un búfer de bytes.
+    \item \textbf{\texttt{md5\_utils}:} cálculo de firmas MD5.
+    \item \textbf{\texttt{file\_format}:} estructura y lectura/escritura de las cabeceras del archivo comprimido.
+    \item \textbf{\texttt{compression\_pipeline}:} flujo completo de compresión y descompresión de un archivo individual.
+    \item \textbf{\texttt{file\_scanner}}, \textbf{\texttt{directory\_utils}}, \textbf{\texttt{work\_partition}} y \textbf{\texttt{growable\_buffer}:} lectura de directorios, manejo de rutas, reparto del trabajo entre trabajadores y búferes de memoria de tamaño variable.
+\end{itemize}
+
+Cada módulo cuenta con una prueba unitaria propia (\texttt{make tests}), y las tres versiones completas se validan con \texttt{make check}.
+
+\subsection{Formato del archivo comprimido}
+
+El enunciado pide expandir \emph{un} archivo comprimido en un directorio, por lo que GutenPress genera un único archivo contenedor \texttt{.huff}, similar a un \texttt{.zip}, con una entrada por cada archivo original. El archivo comienza con una cabecera global, seguida de cada entrada con su propia cabecera y sus datos comprimidos (cuadro \ref{tab:formato}).
+
+\begin{table}[ht]
+    \centering
+    \begin{tabular}{|p{2.5cm}|p{3.1cm}|p{5.1cm}|}
+        \hline
+        \textbf{Bloque} & \textbf{Campo} & \textbf{Descripción} \\
+        \hline
+        Cabecera global & número mágico & Identifica el formato propio (\texttt{HUFC}) \\
+        & versión & Versión del formato \\
+        & cantidad de entradas & Número de archivos contenidos \\
+        \hline
+        Cabecera de entrada & nombre & Nombre del archivo original y su longitud \\
+        & tamaño original & Bytes del archivo antes de comprimir \\
+        & tamaño comprimido & Bytes de datos Huffman que siguen \\
+        & firma MD5 & 16 bytes calculados antes de comprimir \\
+        & longitudes de código & 256 bytes, uno por cada valor de byte \\
+        & bits de relleno & Bits sin uso en el último byte \\
+        \hline
+        Datos & flujo de bits & Contenido codificado con Huffman \\
+        \hline
+    \end{tabular}
+    \caption{Estructura del archivo \texttt{.huff}}
+    \label{tab:formato}
+\end{table}
+
+Las cabeceras se escriben y leen campo por campo, en lugar de volcar las estructuras de C completas con \texttt{fwrite()}. El compilador puede insertar bytes de relleno entre los campos de una estructura, y ese relleno no está garantizado entre compilaciones distintas, así que escribir la estructura completa haría el formato frágil. Al leer, el número mágico se valida primero, de modo que un archivo ajeno se rechaza antes de interpretar el resto.
+
+Los símbolos del alfabeto son los 256 valores posibles de un byte. Por eso el compresor funciona con cualquier archivo, no solo con texto. La firma MD5 cumple el requisito de guardar la firma entre los metadatos del archivo comprimido.
+
+\subsection{Compresión de un archivo}
+
+La compresión de cada archivo sigue estos pasos:
+
+\begin{enumerate}
+    \item \textbf{Firma MD5.} Se lee el archivo completo y se calcula su firma MD5 sobre el contenido original, antes de comprimir. MD5 produce un resumen de 128 bits del mensaje \cite{rfc1321}. Se utiliza la interfaz EVP de OpenSSL 3, ya que las funciones MD5 de bajo nivel están obsoletas en esa versión \cite{openssl35}.
+    \item \textbf{Frecuencias.} Se recorre el contenido y se cuenta la aparición de cada uno de los 256 valores de byte.
+    \item \textbf{Árbol.} Se construye el árbol de Huffman con el montículo mínimo, como se describió en la sección \ref{explicacion}.
+    \item \textbf{Longitudes.} Se recorre el árbol y se obtiene la profundidad de cada hoja, que es la longitud del código de su símbolo. En este punto el árbol ya no es necesario.
+
+    Hay un caso especial: si el archivo contiene un solo valor de byte distinto, el árbol tendría una única hoja en la raíz y ese símbolo recibiría un código de 0 bits, que no se puede decodificar. Para evitarlo, la hoja se une con una hoja ficticia de frecuencia cero, lo que le asigna un código de 1 bit. Si el archivo está vacío, no se construye árbol.
+    \item \textbf{Códigos canónicos.} A partir de las longitudes se asignan los códigos (ver sección siguiente).
+    \item \textbf{Codificación.} Se recorre de nuevo el contenido y se escribe el código de cada byte en el flujo de bits. Si el último byte no se completa, se rellena y se registra la cantidad de bits de relleno.
+    \item \textbf{Escritura.} Se escribe la cabecera de la entrada y, a continuación, el flujo de bits.
+\end{enumerate}
+
+\subsection{Códigos canónicos}
+
+Un árbol de Huffman no es único: intercambiar los hijos de cualquier nodo produce otro código igualmente óptimo. El código canónico elimina esta arbitrariedad. Conserva la longitud de cada código, pero asigna los valores numéricos de forma creciente, de manera que cada código queda determinado solo por su longitud y el orden de los símbolos \cite{schwartz64}.
+
+En GutenPress, los símbolos se ordenan por longitud de código y, a igual longitud, por valor del byte. Luego se recorren en ese orden con un contador que empieza en cero: cada símbolo recibe el valor actual del contador, este se incrementa en uno y, cuando la longitud aumenta, se desplaza a la izquierda tantos bits como haya crecido la longitud. El cuadro \ref{tab:ejemplo} muestra el resultado para el ejemplo anterior.
+
+La ventaja práctica es que el archivo solo necesita guardar la longitud de cada símbolo (256 bytes por entrada) en lugar del árbol completo. El descompresor repite el mismo procedimiento y reconstruye exactamente los mismos códigos. Para los 100 libros del corpus, estas tablas suman 25\,600 bytes, una fracción despreciable frente al tamaño total.
+
+El ordenamiento de los símbolos se implementó con un ordenamiento por conteo sobre las longitudes. Originalmente se usaba \texttt{qsort()} con una función de comparación que leía el arreglo de longitudes desde una variable global. En la versión con hilos, varios hilos calculaban códigos al mismo tiempo y sobrescribían esa variable, lo que producía una condición de carrera. El ordenamiento por conteo usa solo variables locales, por lo que es seguro entre hilos, y además es más rápido, porque las longitudes solo pueden tomar valores entre 1 y 32: basta contar cuántos símbolos hay de cada longitud y recorrer las longitudes en orden creciente, y dentro de cada una los símbolos en orden de valor.
+
+\subsection{Descompresión y verificación}
+
+El descompresor lee la cabecera global y, por cada entrada, reconstruye los códigos canónicos a partir de la tabla de longitudes, decodifica el flujo de bits, escribe el archivo en el directorio de destino, calcula su firma MD5 y la compara con la guardada. Al final informa cuántos archivos se extrajeron y cuántas firmas coincidieron, lo que corresponde al porcentaje de salud de la compresión.
+
+La primera versión del decodificador leía un bit a la vez y, después de cada bit, recorría los 256 símbolos buscando uno cuyo código coincidiera con los bits leídos hasta el momento. El resultado era correcto, pero al medir el tiempo sobre el corpus completo, la descompresión serial tomaba 203.7 segundos.
+
+La solución aprovecha que, en un código canónico, todos los códigos de una misma longitud son valores consecutivos. Antes de decodificar se construye una tabla que guarda, para cada longitud, el primer código, la cantidad de códigos y la posición del primer símbolo en la lista ordenada. Durante la decodificación, los bits leídos se acumulan en un entero y, para la longitud actual, basta comparar su valor con el primer código y la cantidad de códigos de esa longitud. Si el valor cae en el rango, el símbolo se obtiene directamente por índice. Esta técnica de decodificación basada en la estructura canónica es la descrita por \citeA{moffat97}. El costo por bit pasó de recorrer 256 símbolos a una comparación de tiempo constante, y la descompresión del corpus bajó de 203.7 a 3.86 segundos, aproximadamente 53 veces más rápido, con las 100 firmas verificadas.
+
+\subsection{Versión serial}
+
+La versión serial (\texttt{src/serial}) lista los archivos regulares del directorio de entrada y los procesa uno por uno con el flujo descrito, escribiendo cada entrada directamente en el archivo \texttt{.huff}. El descompresor serial recorre las entradas en orden. Esta versión es la línea base para calcular la aceleración de las otras dos.
+
+\section{Solución paralela con \texttt{fork()} e IPC}\label{impl-fork}
+
+\subsection{Reparto del trabajo}
+
+El compresor (\texttt{src/fork\_ipc}) consulta el número de núcleos en línea con \texttt{sysconf(\_SC\_NPROCESSORS\_ONLN)} \cite{mansysconf} y crea esa cantidad de trabajadores, sin superar el número de archivos. La lista de archivos se divide en bloques contiguos, uno por trabajador: cada bloque recibe la división entera del total de archivos entre los trabajadores, y el residuo se reparte de a un archivo entre los primeros, así que los bloques difieren como máximo en un archivo. Con 100 archivos y 4 trabajadores, cada uno recibe 25. Cada trabajador se crea con \texttt{fork()}, que produce un proceso hijo con una copia del espacio de memoria del padre. En Linux, esta copia se implementa con páginas de copia en escritura, por lo que la lista de archivos no se duplica físicamente mientras no se modifique \cite{manfork}.
+
+\subsection{Estrategia de IPC: tuberías anónimas}
+
+Como padre e hijos no comparten memoria, los datos comprimidos deben volver al padre por un mecanismo de IPC. Se eligieron tuberías anónimas (\texttt{pipe()}), porque la relación entre procesos es de padre a hijo y el flujo de datos es unidireccional, del hijo hacia el padre \cite{kerrisk10}.
+
+El padre crea primero una tubería por trabajador y luego crea a todos los hijos. Cada hijo hereda los descriptores de todas las tuberías, no solo de la suya, así que al iniciar cierra todos los extremos que no le corresponden y conserva únicamente el extremo de escritura de su propia tubería. Este paso es necesario porque el fin de archivo en una tubería solo se produce cuando se cierran todos sus extremos de escritura, en todos los procesos \cite{manpipe}; una copia olvidada en otro hijo impediría que el padre detectara el final. Por la misma razón, el padre cierra todos los extremos de escritura, ya que nunca escribe en las tuberías.
+
+El hijo envuelve su descriptor de escritura en un \texttt{FILE*} con \texttt{fdopen()} y, por cada archivo asignado, llama a la misma función \texttt{compressFileIntoStream()} que usa la versión serial. Esa función escribe la cabecera de la entrada seguida de los datos comprimidos, en el mismo formato del archivo \texttt{.huff}. De esta forma no fue necesario diseñar un protocolo de serialización nuevo: lo que viaja por la tubería son entradas completas del archivo final.
+
+\subsection{Sincronización de los subprocesos}
+
+El principal riesgo de este diseño es un bloqueo mutuo. La capacidad de una tubería es limitada (65\,536 bytes por defecto en Linux), y cuando se llena, la llamada \texttt{write()} del hijo se bloquea hasta que alguien lea \cite{manpipe}. Cada trabajador produce alrededor de 11 MB de datos comprimidos, muy por encima de esa capacidad. Si el padre leyera las tuberías en orden, esperando a que termine la primera antes de pasar a la segunda, el segundo hijo quedaría bloqueado con su tubería llena. En ciertos órdenes de ejecución, el programa puede quedar detenido indefinidamente.
+
+Para evitarlo, el padre crea primero a todos los hijos y luego atiende todas las tuberías a la vez con \texttt{poll()}, que bloquea hasta que al menos uno de los descriptores tenga datos disponibles \cite{manpoll}. Cada vez que \texttt{poll()} regresa, el padre lee de las tuberías listas bloques de hasta 64 KB y los agrega al búfer de memoria de ese trabajador. Cuando una lectura devuelve cero bytes, la tubería llegó a fin de archivo: el padre la cierra y la excluye de las siguientes llamadas a \texttt{poll()}. Los búferes se mantienen separados por trabajador, porque una lectura puede devolver una entrada incompleta, cortada en cualquier byte. Si se mezclaran en un solo búfer, los datos quedarían corruptos.
+
+La sincronización entre padre e hijos se logra con tres mecanismos:
+
+\begin{itemize}
+    \item \textbf{Bloqueo de la tubería:} regula el ritmo de producción del hijo según lo que consume el padre.
+    \item \textbf{Fin de archivo:} cuando un hijo termina y cierra su extremo de escritura, el padre recibe fin de archivo en esa tubería y sabe que los datos de ese trabajador están completos \cite{manpipe}.
+    \item \textbf{\texttt{waitpid()}:} el padre espera a cada hijo para liberar sus recursos y revisar su código de salida, de modo que un fallo en un hijo se detecta y se informa \cite{manwait}.
+\end{itemize}
+
+Cuando todos los hijos terminaron, el padre escribe la cabecera global y concatena los búferes en orden de trabajador (no en orden de llegada), para que el archivo resultante sea siempre el mismo sin importar cuál hijo terminó primero.
+
+\subsection{Descompresor paralelo}
+
+Antes de crear a los trabajadores, el padre recorre una sola vez las cabeceras del archivo \texttt{.huff} y construye un índice con los datos de cada entrada y la posición en bytes donde empiezan sus datos comprimidos. Luego reparte las entradas entre los trabajadores con el mismo esquema que el compresor. Cada hijo abre el archivo por su cuenta, salta directamente a sus entradas con \texttt{fseek()}, las decodifica y escribe cada archivo en el directorio de destino. Después calcula la firma MD5 del archivo ya escrito en disco y la compara con la guardada, de modo que la verificación comprueba lo que efectivamente quedó en el disco. Como cada hijo escribe archivos distintos, no hay conflictos entre ellos.
+
+En este caso no hace falta devolver el contenido de los archivos. Por cada entrada, el hijo envía al padre una estructura de tamaño fijo con dos valores: si la extracción tuvo éxito y si la firma coincidió. El padre usa el mismo esquema de \texttt{poll()} para recibir esos resultados y suma los totales de archivos extraídos y firmas verificadas, con los que calcula el porcentaje de salud. Como los registros son pequeños y de tamaño fijo, no se necesita un búfer por trabajador.
+
+\section{Solución concurrente con \texttt{pthread()} y memoria compartida}\label{impl-pthreads}
+
+\subsection{Memoria compartida}
+
+La versión con hilos (\texttt{src/pthreads}) usa el mismo número de trabajadores y el mismo reparto que la versión con \texttt{fork()}, pero cada trabajador es un hilo POSIX creado con \texttt{pthread\_create()}. Todos los hilos de un proceso comparten la memoria global y el montículo \cite{manpthreads}, así que la memoria compartida es la del propio proceso: la lista de archivos, los búferes de salida y los contadores de progreso son estructuras que todos los hilos pueden leer y modificar directamente, sin copias ni tuberías.
+
+Cada hilo escribe los datos comprimidos de sus archivos en su propio búfer de memoria. Para reutilizar sin cambios la misma función que escribe entradas en un \texttt{FILE*}, cada búfer se abre como flujo con \texttt{open\_memstream()}, que crea un \texttt{FILE*} cuyo contenido se guarda en un búfer dinámico que crece automáticamente \cite{manmemstream}. El hilo principal espera a todos los hilos con \texttt{pthread\_join()} y luego escribe la cabecera global y concatena los búferes en orden de hilo, igual que la versión con procesos.
+
+\subsection{Sincronización de los hilos}
+
+El diseño evita en lo posible el estado compartido que se modifica. Cada hilo tiene su propio búfer de salida y sus propios archivos, y ningún otro hilo los toca, por lo que esas estructuras no necesitan protección.
+
+El recurso que sí se comparte y se modifica es el contador de progreso, que lleva la cuenta de cuántos archivos se han procesado y se imprime como \texttt{[k/100]}. Si dos hilos lo incrementaran al mismo tiempo sin protección, podrían leer el mismo valor, y uno de los incrementos se perdería. Por eso el contador está protegido por un \texttt{pthread\_mutex\_t}: un hilo lo bloquea con \texttt{pthread\_mutex\_lock()}, incrementa el contador, imprime la línea de progreso y lo libera con \texttt{pthread\_mutex\_unlock()}. Mientras un hilo tiene el mutex, cualquier otro que intente bloquearlo espera hasta que se libere, así que el incremento y la impresión ocurren como una sola operación indivisible \cite{manmutex}. La sección crítica se mantuvo lo más corta posible, ya que la compresión en sí ocurre fuera del mutex.
+
+El descompresor sigue el mismo principio, con un cuidado adicional. Un mismo \texttt{FILE*} mantiene una única posición de lectura, por lo que si varios hilos hicieran \texttt{fseek()} y \texttt{fread()} sobre el mismo manejador, uno movería la posición mientras otro está leyendo y los datos se mezclarían. Por eso cada hilo abre su propio \texttt{FILE*} sobre el archivo \texttt{.huff}, y la única estructura compartida de solo lectura es el índice de entradas, que el hilo principal construye antes de crear a los hilos. Cada hilo escribe archivos distintos en disco, así que la escritura no necesita sincronización. Los únicos datos compartidos que se modifican son los contadores de archivos extraídos y de firmas verificadas, que se actualizan, junto con la línea de progreso, dentro de la sección crítica protegida por un segundo mutex.
+
+La sincronización también exigió revisar el código común. La condición de carrera en la asignación de códigos canónicos, descrita en la sección \ref{impl-huffman}, no se manifestaba en la versión serial ni en la de procesos, porque cada proceso tiene su propia copia de la variable global. Solo apareció cuando varios hilos compartían la misma memoria.
+
+\section{Interfaz gráfica y medición de tiempos}\label{gui}
+
+La interfaz (\texttt{src/gui}) está escrita en GTK 3 y ofrece cuatro opciones: comprimir, descomprimir, analizar compresión y analizar descompresión. Las dos últimas ejecutan las tres versiones sobre el mismo directorio o archivo y presentan los resultados en una tabla comparativa.
+
+Cada versión se ejecuta como un subproceso independiente: la interfaz crea un hijo con \texttt{fork()}, redirige su salida estándar a una tubería y lo reemplaza por el ejecutable correspondiente con \texttt{execv()}. El tiempo se mide desde la interfaz con \texttt{clock\_gettime()} y el reloj \texttt{CLOCK\_MONOTONIC}, que no se ve afectado por cambios en la hora del sistema \cite{manclock}. El reloj se lee antes de crear el subproceso y después de que \texttt{waitpid()} confirma que terminó, así que la medición incluye el costo completo de cada programa y las tres versiones se miden exactamente de la misma forma. Los tamaños, el radio y el porcentaje de salud se obtienen del resumen que cada programa imprime al terminar.
+
+El porcentaje de aceleración de cada versión paralela se calcula respecto a la corrida serial como
+\[
+    \mbox{aceleración} = \frac{T_{\mbox{serial}} - T_{\mbox{versión}}}{T_{\mbox{serial}}} \times 100,
+\]
+es decir, el porcentaje del tiempo serial que la versión logra ahorrar. Por ejemplo, un 50\% indica que la versión tardó la mitad del tiempo que la serial. La ejecución ocurre en un hilo secundario para que la ventana siga respondiendo, y el resultado se entrega al hilo principal de GTK con \texttt{g\_idle\_add()}, que programa una función para que se ejecute en el ciclo principal de eventos \cite{glibidle}.
+
+\section{Resultados}\label{resultados}
+
+Las pruebas se realizaron en una máquina virtual con Debian 13 y 4 núcleos. El corpus de 100 libros ocupa 77\,354\,064 bytes y el archivo comprimido ocupa 44\,531\,705 bytes, un radio de compresión de 0.5757, idéntico en las tres versiones. Las tres versiones verificaron correctamente las 100 firmas MD5, y los archivos \texttt{.huff} que generan son intercambiables: cualquier descompresor puede expandir el archivo producido por cualquier compresor.
+
+El cuadro \ref{tab:tiempos} resume los tiempos obtenidos desde la interfaz gráfica.
+
+% TODO: completar con los valores de la tabla comparativa de la GUI
+\begin{table}[ht]
+    \centering
+    \footnotesize
+    \setlength{\tabcolsep}{4pt}
+    \begin{tabular}{|l|c|c|c|c|c|}
+        \hline
+        \textbf{Versión} & \textbf{Salud} & \textbf{\begin{tabular}{@{}c@{}}Tiempo\\compresión\end{tabular}} & \textbf{\begin{tabular}{@{}c@{}}Acel.\\compresión\end{tabular}} & \textbf{\begin{tabular}{@{}c@{}}Tiempo\\descompresión\end{tabular}} & \textbf{\begin{tabular}{@{}c@{}}Acel.\\descompresión\end{tabular}} \\
+        \hline
+        Serial   & 100\% & [\,? s\,] & --- & [\,? s\,] & --- \\
+        fork + IPC & 100\% & [\,? s\,] & [\,?\%\,] & [\,? s\,] & [\,?\%\,] \\
+        pthreads & 100\% & [\,? s\,] & [\,?\%\,] & [\,? s\,] & [\,?\%\,] \\
+        \hline
+    \end{tabular}
+    \caption{Tiempos y aceleración sobre el corpus de 100 libros}
+    \label{tab:tiempos}
+\end{table}
+
+% =====================================================================
+\chapter{Conclusiones}\label{conclusiones}
+% =====================================================================
+
+% TODO: ajustar las conclusiones 1 y 2 según los valores del cuadro de resultados
+
+\begin{enumerate}
+    \item \textbf{El paralelismo reduce el tiempo de compresión, pero no en proporción al número de núcleos.} Con 4 trabajadores, el máximo teórico sería cuatro veces más rápido, pero parte del trabajo sigue siendo serial: leer el directorio, escribir la cabecera, concatenar los búferes y crear o esperar a los trabajadores. La ley de Amdahl establece que esa fracción serial limita la aceleración que se puede obtener sin importar cuántos procesadores se agreguen \cite{amdahl67}.
+
+    \item \textbf{La diferencia entre procesos e hilos se refleja en el costo de la comunicación.} En la versión con \texttt{fork()}, los datos comprimidos atraviesan una tubería y se copian entre espacios de memoria. En la versión con hilos, los datos ya están en la memoria del proceso y solo se concatenan. A cambio, los procesos ofrecen aislamiento: un error de memoria en un hijo no corrompe los datos de los demás.
+
+    \item \textbf{Compartir memoria obliga a revisar todo el código, no solo el nuevo.} El error más difícil de este proyecto estaba en código común que ya había pasado todas las pruebas: una variable global usada por \texttt{qsort()}, que es segura en un solo hilo o en procesos separados, pero no entre hilos. Con memoria compartida, cualquier estado global es un posible punto de conflicto, y la mejor sincronización es la que no se necesita porque cada hilo trabaja sobre datos propios.
+
+    \item \textbf{La comunicación por tuberías requiere pensar en el bloqueo.} Una implementación directa, que lee una tubería tras otra, puede quedar bloqueada, porque la capacidad de la tubería es mucho menor que los datos que produce cada hijo. Multiplexar la lectura con \texttt{poll()} resolvió el problema sin agregar complejidad a los hijos.
+
+    \item \textbf{Una implementación correcta no es necesariamente eficiente.} El primer decodificador producía resultados correctos y pasaba todas las pruebas de integridad, pero tardaba más de tres minutos. Solo al medir el tiempo se detectó que el costo estaba en la búsqueda lineal por cada bit. Aprovechar la estructura del código canónico redujo el tiempo unas 53 veces, una mejora mucho mayor que la que aporta el paralelismo con 4 núcleos. La elección del algoritmo pesa más que el número de procesadores.
+
+    \item \textbf{El reparto estático tiene límites.} Dividir los archivos en bloques contiguos es simple y funciona bien con este corpus, pero los libros tienen tamaños muy distintos, por lo que un trabajador puede recibir más bytes que otro y terminar después. Un reparto dinámico, en el que cada trabajador toma el siguiente archivo disponible de una cola compartida, equilibraría mejor la carga y es una mejora natural para un trabajo futuro.
+\end{enumerate}
 
 % Estilo de bibliografía APA
 % Si quiere usar el estilo IEEE comente esta línea
