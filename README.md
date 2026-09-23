@@ -6,7 +6,7 @@
 
 ## Demo
 
-[![GutenPress Demo](https://img.shields.io/badge/▶%20Watch-Demo%20Video-red?style=for-the-badge)](VIDEO_URL_HERE)
+[![GutenPress Demo](https://img.shields.io/badge/▶%20Watch-Demo%20Video-red?style=for-the-badge)](https://github.com/user-attachments/assets/983b9034-3ac2-43fc-9250-a65a734a87b6)
 
 > Video walkthrough: compressing and decompressing the Project Gutenberg corpus with each version and the comparative analysis from the GUI.
 
